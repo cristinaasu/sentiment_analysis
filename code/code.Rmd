@@ -1,7 +1,7 @@
 ---
-title: "Project Proposal - Code"
-author: "Cristina Su Lam, Sum Yee Chan, Parisa Pham"
-date: "2025-02-13"
+title: "Code"
+author: "Sum Yee Chan, Parisa Pham, Cristina Su Lam"
+date: today
 output:
   pdf_document: default
   html_document: default
@@ -16,15 +16,15 @@ library(stringr)
 library(lubridate) 
 library(data.table)
 library(janitor)
-library(purrr)
-library(jsonlite)
-library(textdata)
 library(readr)
 library(zoo)
 library(tidyr)
 library(AER)
+library(igraph)
+library(ggraph)
 ```
 
+# Data Cleaning
 ```{r, warning=FALSE, message=FALSE}
 # Load macroeconomic data
 inflation <- read_csv("../datasets/cpi.csv") %>%
@@ -260,7 +260,10 @@ nflx_cleaned <- nflx_cleaned %>%
   mutate(
     Month = factor(month(Date)),
     Year = factor(year(Date), levels = sort(unique(year(Date))))
-  )
+  ) %>%
+  arrange(Date) %>%
+  mutate(Lagged_Sentiment = lag(`Netflix Sentiment Score`)) %>%
+  mutate(Price_Direction = ifelse(`Netflix Daily Change` > 0, 1, 0))
 
 # Select and rename columns for Amazon dataset
 amzn_cleaned <- amzn_cleaned %>%
@@ -281,7 +284,8 @@ amzn_cleaned <- amzn_cleaned %>%
   mutate(
     Month = factor(month(Date)),
     Year = factor(year(Date), levels = sort(unique(year(Date))))
-  )
+  ) %>%
+  mutate(Price_Direction = ifelse(`Amazon Daily Change` > 0, 1, 0))
 
 # Select and rename columns for Meta dataset
 meta_cleaned <- meta_cleaned %>%
@@ -302,9 +306,11 @@ meta_cleaned <- meta_cleaned %>%
   mutate(
     Month = factor(month(Date)),
     Year = factor(year(Date), levels = sort(unique(year(Date))))
-  )
+  ) %>%
+  mutate(Price_Direction = ifelse(`Meta Daily Change` > 0, 1, 0))
 ```
 
+# EDA
 ```{r}
 # Meta summary
 summary(meta_cleaned[, c("Meta Daily Change", "Meta Sentiment Score", 
@@ -322,90 +328,92 @@ summary(amzn_cleaned[, c("Amazon Daily Change", "Amazon Sentiment Score",
                          "Inflation", "Unemployment Rate", "Amazon Volume")])
 ```
 
+```{r}
+# Stock Prices Over Time
+combined_prices <- bind_rows(
+  nflx_cleaned %>% select(Date, Close = `Netflix Close Price`) %>% mutate(Company = "Netflix"),
+  meta_cleaned %>% select(Date, Close = `Meta Close Price`) %>% mutate(Company = "Meta"),
+  amzn_cleaned %>% select(Date, Close = `Amazon Close Price`) %>% mutate(Company = "Amazon")
+)
+
+# Plot
+ggplot(combined_prices, aes(x = Date, y = Close, color = Company)) +
+  geom_line() +
+  labs(title = "Stock Prices Over Time", x = "Date", y = "Adjusted Close Price") +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+
+# Modelling
+## Netflix
 ```{r, warning=FALSE}
+# Baseline Model
 b_nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score`, data = nflx_cleaned)
 summary(b_nflx_model)
 
 # Full Model
-nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Unemployment Rate` + `Netflix Volume`, data = nflx_cleaned)
+nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Unemployment Rate` + `Netflix Volume` + Month + Year + Inflation, data = nflx_cleaned)
 summary(nflx_model)
+
+
+# IV regression
+iv_model <- ivreg(
+  `Netflix Daily Change` ~
+    `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + 
+    `Netflix Volume` + `Unemployment Rate` |
+  Lagged_Sentiment + `NASDAQ Daily Change` + `Interest Rate` + 
+    `Netflix Volume` + `Unemployment Rate`,
+  data = iv_data
+)
+summary(iv_model)
+
+
+
+# Logit Model
+logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Netflix Volume` + `Unemployment Rate` + Month + Year + Inflation,
+                   data = nflx_cleaned, family = "binomial")
+summary(logit_model)
 ```
 
-## fixed effects 
-```{r}
-fe_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + 
-                 `NASDAQ Daily Change` + `Interest Rate` + 
-                 `Netflix Volume` + `Unemployment Rate` +
-                 Month + Year, data = nflx_cleaned)
-summary(fe_model)
-```
 
-
-
+## Amazon
 ```{r, warning=FALSE}
 # Baseline Model
 b_amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score`, data = amzn_cleaned)
 summary(b_amzn_model)
 
 # Full Model
-amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume`+ `Unemployment Rate`, data = amzn_cleaned)
+amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume`+ `Unemployment Rate` + Month + Year, data = amzn_cleaned)
 summary(amzn_model)
+
+# Logit Model
+logit_model_amzn <- glm(Price_Direction ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume` + `Unemployment Rate` + Month + Year,
+                   data = amzn_cleaned, family = "binomial")
+summary(logit_model_amzn)
 ```
 
+## Meta
 ```{r, warning=FALSE}
 # Baseline Model
 b_meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
 summary(b_meta_model) 
 
 # Full Model
-meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
+meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate` + + Month + Year, data = meta_cleaned)
 summary(meta_model) 
-```
 
-```{r}
-nflx_cleaned <- nflx_cleaned %>%
-  mutate(Price_Direction = ifelse(`Netflix Daily Change` > 0, 1, 0))
-
-logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Netflix Volume` + `Unemployment Rate`,
-                   data = nflx_cleaned, family = "binomial")
-summary(logit_model)
-```
-
-```{r}
-meta_cleaned <- meta_cleaned %>%
-  mutate(Price_Direction = ifelse(`Meta Daily Change` > 0, 1, 0))
-
-logit_model_meta <- glm(Price_Direction ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`,
+# Logit Model
+logit_model_meta <- glm(Price_Direction ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate` + Month + Year,
                    data = meta_cleaned, family = "binomial")
 summary(logit_model_meta)
 ```
 
 
-```{r}
-amzn_cleaned <- amzn_cleaned %>%
-  mutate(Price_Direction = ifelse(`Amazon Daily Change` > 0, 1, 0))
 
-logit_model_amzn <- glm(Price_Direction ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume` + `Unemployment Rate`,
-                   data = amzn_cleaned, family = "binomial")
-summary(logit_model_amzn)
-```
 
-## iv model
-```{r}
-# Create lagged sentiment
-nflx_cleaned <- nflx_cleaned %>%
-  arrange(Date) %>%
-  mutate(Lagged_Sentiment = lag(`Netflix Sentiment Score`))
 
-# IV regression
-iv_model <- ivreg(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + 
-                    `Interest Rate` + `Netflix Volume` + `Unemployment Rate` |
-                    Lagged_Sentiment + `NASDAQ Daily Change` + 
-                    `Interest Rate` + `Netflix Volume` + `Unemployment Rate`,
-                  data = nflx_cleaned)
 
-summary(iv_model)
-```
 
 
 
