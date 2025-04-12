@@ -1,0 +1,18 @@
+---
+title: ""
+subtitle: ""
+author: 
+  - Sum Yee Chan
+  - Parisa Pham
+  - Cristina Su Lam
+thanks: "Code and data are available at: https://github.com/karenrni/Forecasting-the-2024-US-Presidential-Elections"
+date: today
+date-format: long
+abstract: ""
+toc: true
+fig_caption: yes
+number-sections: true
+bibliography: references.bib
+format: pdf
+---
+
