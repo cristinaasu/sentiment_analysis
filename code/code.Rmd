@@ -1,0 +1,421 @@
+---
+title: "Project Proposal - Code"
+author: "Cristina Su Lam, Sum Yee Chan, Parisa Pham"
+date: "2025-02-13"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(quantmod)  
+library(tidytext) 
+library(dplyr) 
+library(ggplot2) 
+library(stringr)  
+library(lubridate) 
+library(data.table)
+library(janitor)
+library(purrr)
+library(jsonlite)
+library(textdata)
+library(readr)
+library(zoo)
+library(tidyr)
+library(AER)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Load macroeconomic data
+inflation <- read_csv("../datasets/cpi.csv") %>%
+  mutate(observation_date = as.Date(observation_date, format = "%m/%d/%Y"))
+
+unemployment <- read_csv("../datasets/unrate.csv") %>%
+  mutate(observation_date = as.Date(observation_date, format = "%m/%d/%Y"))
+
+interest_rate <- read_csv("../datasets/EFFR.csv") %>%
+  mutate(observation_date = as.Date(observation_date))
+
+# Forward-fill macroeconomic data to ensure daily values exist
+inflation <- inflation %>% 
+  complete(observation_date = seq(min(observation_date), max(observation_date), by = "day")) %>%
+  fill(CPIAUCSL, .direction = "down")
+
+unemployment <- unemployment %>% 
+  complete(observation_date = seq(min(observation_date), max(observation_date), by = "day")) %>%
+  fill(UNRATE, .direction = "down")
+
+# Merge all macro data into a single dataset
+macro_data <- interest_rate %>%
+  left_join(inflation, by = "observation_date") %>%
+  left_join(unemployment, by = "observation_date")
+```
+
+```{r, warning=FALSE}
+# Sentiment data 
+data("sentiments", package = "tidytext")
+lm_sentiment <- get_sentiments("loughran")
+
+# For part 1
+zip1 <- "../datasets/nyt-metadata-part1.csv.zip"
+file1_name <- unzip(zip1, list = TRUE)$Name[1]
+file1_path <- unzip(zip1, files = file1_name, exdir = tempdir(), overwrite = TRUE)
+part1 <- fread(file1_path)
+
+# For part 2
+zip2 <- "../datasets/nyt-metadata-part2.csv.zip"
+file2_name <- unzip(zip2, list = TRUE)$Name[1]
+file2_path <- unzip(zip2, files = file2_name, exdir = tempdir(), overwrite = TRUE)
+part2 <- fread(file2_path)
+
+# Combine them
+nyc_news <- rbindlist(list(part1, part2))
+
+# Convert all column names and text to lowercase
+nyc_news <- nyc_news %>% 
+  clean_names() %>%                  
+  mutate(across(everything(), tolower)) 
+
+# Ensure text fields are trimmed and cleaned
+nyc_news <- nyc_news %>%
+  mutate(
+    headline = str_trim(headline),
+    lead_paragraph = str_trim(lead_paragraph),
+    snippet = str_trim(snippet)
+  )
+```
+
+```{r, warning=FALSE}
+keywords_amz <- c(
+  "amazon", "amzn", "jeff bezos", "andy jassy", "prime day")
+
+# Convert keywords into a regex pattern
+amazon_pattern <- paste(keywords_amz, collapse = "|")
+
+amz_stocks_news <- nyc_news %>%
+  filter(
+    str_detect(headline, regex(amazon_pattern, ignore_case = TRUE)) |
+    str_detect(lead_paragraph, regex(amazon_pattern, ignore_case = TRUE)) |
+    str_detect(snippet, regex(amazon_pattern, ignore_case = TRUE))
+  )
+
+# View first few rows
+head(amz_stocks_news)
+```
+
+```{r}
+keywords_netflix_stock <- c(
+  "netflix", "netflix stock", "nflx", "greg peters", "ted sarandos"
+)
+
+# Convert keywords into a regex pattern with word boundaries
+netflix_pattern <- paste(keywords_netflix_stock, collapse = "|")
+
+# Filter news articles that match Netflix **stock-related** keywords
+netflix_stock_news <- nyc_news %>%
+  filter(
+    str_detect(headline, regex(netflix_pattern, ignore_case = TRUE)) |
+    str_detect(lead_paragraph, regex(netflix_pattern, ignore_case = TRUE)) |
+    str_detect(snippet, regex(netflix_pattern, ignore_case = TRUE))
+  )
+
+# View first few rows
+head(netflix_stock_news)
+```
+
+
+```{r}
+keywords_meta <- c(
+  "meta", "meta platforms", "facebook", "mark zuckerberg", "instagram", 
+  "whatsapp", "facebook stock", "meta stock",
+  "meta stock market"
+)
+
+# Convert keywords into a regex pattern
+meta_pattern <- paste(keywords_meta, collapse = "|")
+
+meta_stocks_news <- nyc_news %>%
+  filter(
+    str_detect(headline, regex(meta_pattern, ignore_case = TRUE)) |
+    str_detect(lead_paragraph, regex(meta_pattern, ignore_case = TRUE)) |
+    str_detect(snippet, regex(meta_pattern, ignore_case = TRUE))
+  )
+
+# View first few rows
+head(meta_stocks_news)
+```
+
+
+```{r}
+# Define stock tickers and date range
+stocks <- c("NFLX", "AMZN", "META")
+start_date <- "2014-01-01"
+end_date <- Sys.Date()
+
+# Download stock data
+getSymbols(stocks, src = "yahoo", from = start_date, to = end_date)
+
+# Function to process stock data separately
+process_stock_data <- function(stock_symbol) {
+  stock_data <- get(stock_symbol)
+  stock_df <- data.frame(Date = index(stock_data), coredata(stock_data)) %>%
+    rename(Close = paste0(stock_symbol, ".Adjusted")) %>%
+    mutate(Daily_Change = Close - lag(Close))
+  return(stock_df)
+}
+
+# Process and store each stock separately
+nflx_data <- process_stock_data("NFLX")
+amzn_data <- process_stock_data("AMZN")
+meta_data <- process_stock_data("META")
+
+# Get NASDAQ Composite Index data
+getSymbols("^IXIC", src = "yahoo", from = start_date, to = end_date)
+nasdaq_data <- data.frame(Date = index(IXIC), coredata(IXIC)) %>%
+  rename(Close = IXIC.Adjusted) %>%
+  mutate(Nasdaq_Daily_Change = Close - lag(Close)) %>%
+  select(Date, Nasdaq_Daily_Change)
+```
+
+```{r}
+# Define a function to extract sentiment scores
+analyze_sentiment <- function(stock_news) {
+  stock_news %>% 
+    unnest_tokens(word, headline) %>%
+    inner_join(get_sentiments("loughran"), by = "word") %>%
+    mutate(
+      positive = ifelse(sentiment == "positive", 1, 0),  
+      negative = ifelse(sentiment == "negative", 1, 0)
+    ) %>%
+    group_by(pub_date_only) %>%
+    summarize(
+      Sentiment_Score = (sum(positive) - sum(negative)) / n(),
+      positive_count = sum(positive),
+      negative_count = sum(negative),
+      .groups = "drop"
+    )
+}
+
+# Apply sentiment analysis
+nflx_sentiment <- analyze_sentiment(netflix_stock_news)
+amzn_sentiment <- analyze_sentiment(amz_stocks_news)
+meta_sentiment <- analyze_sentiment(meta_stocks_news)
+```
+
+```{r}
+# Ensure pub_date_only is Date format
+nflx_sentiment$pub_date_only <- as.Date(nflx_sentiment$pub_date_only)
+amzn_sentiment$pub_date_only <- as.Date(amzn_sentiment$pub_date_only)
+meta_sentiment$pub_date_only <- as.Date(meta_sentiment$pub_date_only)
+
+# Merge sentiment scores with stock returns
+nflx_merged <- left_join(nflx_sentiment, nflx_data, by = c("pub_date_only" = "Date"))
+amzn_merged <- left_join(amzn_sentiment, amzn_data, by = c("pub_date_only" = "Date"))
+meta_merged <- left_join(meta_sentiment, meta_data, by = c("pub_date_only" = "Date"))
+
+# Rename `pub_date_only` to `Date` so all datasets are consistent
+nflx_merged <- nflx_merged %>% rename(Date = pub_date_only)
+amzn_merged <- amzn_merged %>% rename(Date = pub_date_only)
+meta_merged <- meta_merged %>% rename(Date = pub_date_only)
+
+# Fill missing sentiment scores
+nflx_merged$Sentiment_Score[is.na(nflx_merged$Sentiment_Score)] <- 0
+amzn_merged$Sentiment_Score[is.na(amzn_merged$Sentiment_Score)] <- 0
+meta_merged$Sentiment_Score[is.na(meta_merged$Sentiment_Score)] <- 0
+
+# Merge NASDAQ data
+nflx_merged <- left_join(nflx_merged, nasdaq_data, by = "Date")
+amzn_merged <- left_join(amzn_merged, nasdaq_data, by = "Date")
+meta_merged <- left_join(meta_merged, nasdaq_data, by = "Date")
+
+# Merge macroeconomic data
+nflx_cleaned <- left_join(nflx_merged, macro_data, by = c("Date" = "observation_date"))
+amzn_cleaned <- left_join(amzn_merged, macro_data, by = c("Date" = "observation_date"))
+meta_cleaned <- left_join(meta_merged, macro_data, by = c("Date" = "observation_date"))
+
+# Drop observations where `Close` is NA
+nflx_cleaned <- nflx_cleaned %>% filter(!is.na(Close))
+amzn_cleaned <- amzn_cleaned %>% filter(!is.na(Close))
+meta_cleaned <- meta_cleaned %>% filter(!is.na(Close))
+```
+
+
+```{r}
+# Select and rename columns for Netflix dataset
+nflx_cleaned <- nflx_cleaned %>%
+  select(Date, Close, Daily_Change, NFLX.Volume, Sentiment_Score, positive_count, negative_count, 
+         Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
+  rename(
+    "Netflix Daily Change" = Daily_Change,
+    "Netflix Close Price" = Close,
+    "Netflix Sentiment Score" = Sentiment_Score,
+    "Netflix Positive Count" = positive_count,
+    "Netflix Negative Count" = negative_count,
+    "NASDAQ Daily Change" = Nasdaq_Daily_Change,
+    "Interest Rate" = EFFR,
+    "Inflation" = CPIAUCSL,
+    "Unemployment Rate" = UNRATE,
+    "Netflix Volume" = NFLX.Volume
+  ) %>%
+  mutate(
+    Month = factor(month(Date)),
+    Year = factor(year(Date), levels = sort(unique(year(Date))))
+  )
+
+# Select and rename columns for Amazon dataset
+amzn_cleaned <- amzn_cleaned %>%
+  select(Date, Close, Daily_Change, AMZN.Volume, Sentiment_Score, positive_count, negative_count, 
+         Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
+  rename(
+    "Amazon Daily Change" = Daily_Change,
+    "Amazon Close Price" = Close,
+    "Amazon Sentiment Score" = Sentiment_Score,
+    "Amazon Positive Count" = positive_count,
+    "Amazon Negative Count" = negative_count,
+    "NASDAQ Daily Change" = Nasdaq_Daily_Change,
+    "Interest Rate" = EFFR,
+    "Inflation" = CPIAUCSL,
+    "Unemployment Rate" = UNRATE,
+    "Amazon Volume" = AMZN.Volume
+  ) %>%
+  mutate(
+    Month = factor(month(Date)),
+    Year = factor(year(Date), levels = sort(unique(year(Date))))
+  )
+
+# Select and rename columns for Meta dataset
+meta_cleaned <- meta_cleaned %>%
+  select(Date, Close, Daily_Change, META.Volume, Sentiment_Score, positive_count, negative_count, 
+         Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
+  rename(
+    "Meta Daily Change" = Daily_Change,
+    "Meta Close Price" = Close,
+    "Meta Sentiment Score" = Sentiment_Score,
+    "Meta Positive Count" = positive_count,
+    "Meta Negative Count" = negative_count,
+    "NASDAQ Daily Change" = Nasdaq_Daily_Change,
+    "Interest Rate" = EFFR,
+    "Inflation" = CPIAUCSL,
+    "Unemployment Rate" = UNRATE,
+    "Meta Volume" = META.Volume
+  ) %>%
+  mutate(
+    Month = factor(month(Date)),
+    Year = factor(year(Date), levels = sort(unique(year(Date))))
+  )
+```
+
+```{r}
+# Meta summary
+summary(meta_cleaned[, c("Meta Daily Change", "Meta Sentiment Score", 
+                         "NASDAQ Daily Change", "Interest Rate", 
+                         "Inflation", "Unemployment Rate", "Meta Volume")])
+
+# Meta summary
+summary(nflx_cleaned[, c("Netflix Daily Change", "Netflix Sentiment Score", 
+                         "NASDAQ Daily Change", "Interest Rate", 
+                         "Inflation", "Unemployment Rate", "Netflix Volume")])
+
+# Meta summary
+summary(amzn_cleaned[, c("Amazon Daily Change", "Amazon Sentiment Score", 
+                         "NASDAQ Daily Change", "Interest Rate", 
+                         "Inflation", "Unemployment Rate", "Amazon Volume")])
+```
+
+```{r, warning=FALSE}
+b_nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score`, data = nflx_cleaned)
+summary(b_nflx_model)
+
+# Full Model
+nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Unemployment Rate` + `Netflix Volume`, data = nflx_cleaned)
+summary(nflx_model)
+```
+
+## fixed effects 
+```{r}
+fe_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + 
+                 `NASDAQ Daily Change` + `Interest Rate` + 
+                 `Netflix Volume` + `Unemployment Rate` +
+                 Month + Year, data = nflx_cleaned)
+summary(fe_model)
+```
+
+
+
+```{r, warning=FALSE}
+# Baseline Model
+b_amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score`, data = amzn_cleaned)
+summary(b_amzn_model)
+
+# Full Model
+amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume`+ `Unemployment Rate`, data = amzn_cleaned)
+summary(amzn_model)
+```
+
+```{r, warning=FALSE}
+# Baseline Model
+b_meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
+summary(b_meta_model) 
+
+# Full Model
+meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
+summary(meta_model) 
+```
+
+```{r}
+nflx_cleaned <- nflx_cleaned %>%
+  mutate(Price_Direction = ifelse(`Netflix Daily Change` > 0, 1, 0))
+
+logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Netflix Volume` + `Unemployment Rate`,
+                   data = nflx_cleaned, family = "binomial")
+summary(logit_model)
+```
+
+```{r}
+meta_cleaned <- meta_cleaned %>%
+  mutate(Price_Direction = ifelse(`Meta Daily Change` > 0, 1, 0))
+
+logit_model_meta <- glm(Price_Direction ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`,
+                   data = meta_cleaned, family = "binomial")
+summary(logit_model_meta)
+```
+
+
+```{r}
+amzn_cleaned <- amzn_cleaned %>%
+  mutate(Price_Direction = ifelse(`Amazon Daily Change` > 0, 1, 0))
+
+logit_model_amzn <- glm(Price_Direction ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume` + `Unemployment Rate`,
+                   data = amzn_cleaned, family = "binomial")
+summary(logit_model_amzn)
+```
+
+## iv model
+```{r}
+# Create lagged sentiment
+nflx_cleaned <- nflx_cleaned %>%
+  arrange(Date) %>%
+  mutate(Lagged_Sentiment = lag(`Netflix Sentiment Score`))
+
+# IV regression
+iv_model <- ivreg(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + 
+                    `Interest Rate` + `Netflix Volume` + `Unemployment Rate` |
+                    Lagged_Sentiment + `NASDAQ Daily Change` + 
+                    `Interest Rate` + `Netflix Volume` + `Unemployment Rate`,
+                  data = nflx_cleaned)
+
+summary(iv_model)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
