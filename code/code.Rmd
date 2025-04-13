@@ -382,26 +382,28 @@ ggplot(scatter_data, aes(x = Sentiment, y = Change, color = Company)) +
   theme(legend.title = element_blank())
 ```
 
-
-
 # Modelling
 ## Netflix
 ```{r, warning=FALSE}
 # 1. Baseline Model
 b_nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score`, data = nflx_cleaned)
 summary(b_nflx_model)
+coeftest(b_nflx_model, vcov = vcovHC(b_nflx_model, type = "HC1"))
 
 # 2. Plus Economic Factors
 nflx_model_e <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = nflx_cleaned)
 summary(nflx_model_e)
+coeftest(nflx_model_e, vcov = vcovHC(nflx_model_e, type = "HC1"))
 
 # 3. Plus Financial Factors
 nflx_model_f <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Netflix Volume`, data = nflx_cleaned)
 summary(nflx_model_f)
+coeftest(nflx_model_f, vcov = vcovHC(nflx_model_f, type = "HC1"))
 
 # 4. Plus Time Fixed Effects - Full Model
 nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = nflx_cleaned)
 summary(nflx_model)
+coeftest(nflx_model, vcov = vcovHC(nflx_model, type = "HC1"))
 
 # IV regression
 iv_model <- ivreg(
@@ -413,12 +415,13 @@ iv_model <- ivreg(
   data = iv_data
 )
 summary(iv_model)
-
+coeftest(iv_model, vcov = vcovHC(iv_model, type = "HC1"))
 
 # Logit Model
 logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Netflix Volume` + `Unemployment Rate` + Month + Year + Inflation,
                    data = nflx_cleaned, family = "binomial")
 summary(logit_model)
+coeftest(logit_model, vcov = vcovHC(logit_model, type = "HC1"))
 ```
 
 ## Amazon
@@ -426,23 +429,28 @@ summary(logit_model)
 # 1. Baseline Model
 b_amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score`, data = amzn_cleaned)
 summary(b_amzn_model)
+coeftest(b_amzn_model, vcov = vcovHC(b_amzn_model, type = "HC1"))
 
 # 2. Plus Economic Factors
 amzn_model_e <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = amzn_cleaned)
 summary(amzn_model_e)
+coeftest(amzn_model_e, vcov = vcovHC(amzn_model_e, type = "HC1"))
 
 # 3. Plus Financial Factors
 amzn_model_f <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Amazon Volume`, data = amzn_cleaned)
 summary(amzn_model_f)
+coeftest(amzn_model_f, vcov = vcovHC(amzn_model_f, type = "HC1"))
 
 # 4. Plus Time Fixed Effects - Full Model
-amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = amzn_cleaned)
+amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Amazon Volume` + Month + Year, data = amzn_cleaned)
 summary(amzn_model)
+coeftest(amzn_model, vcov = vcovHC(amzn_model, type = "HC1"))
 
 # Logit Model
 logit_model_amzn <- glm(Price_Direction ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume` + `Unemployment Rate` + Month + Year,
                    data = amzn_cleaned, family = "binomial")
 summary(logit_model_amzn)
+coeftest(logit_model_amzn, vcov = vcovHC(logit_model_amzn, type = "HC1"))
 ```
 
 ## Meta
@@ -450,23 +458,28 @@ summary(logit_model_amzn)
 # 1. Baseline Model
 b_meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
 summary(b_meta_model) 
+coeftest(b_meta_model, vcov = vcovHC(b_meta_model, type = "HC1"))
 
 # 2. Plus Economic Factors
-meta_model_e <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = amzn_cleaned)
+meta_model_e <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = meta_cleaned)
 summary(meta_model_e)
+coeftest(meta_model_e, vcov = vcovHC(meta_model_e, type = "HC1"))
 
 # 3. Plus Financial Factors
-meta_model_f <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Amazon Volume`, data = meta_cleaned)
+meta_model_f <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Meta Volume`, data = meta_cleaned)
 summary(meta_model_f)
+coeftest(meta_model_f, vcov = vcovHC(meta_model_f, type = "HC1"))
 
 # 4. Plus Time Fixed Effects - Full Model
-meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = meta_cleaned)
+meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Meta Volume` + Month + Year, data = meta_cleaned)
 summary(meta_model)
+coeftest(meta_model, vcov = vcovHC(meta_model, type = "HC1"))
 
 # Logit Model
 logit_model_meta <- glm(Price_Direction ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate` + Month + Year,
                    data = meta_cleaned, family = "binomial")
 summary(logit_model_meta)
+coeftest(logit_model_meta, vcov = vcovHC(logit_model_meta, type = "HC1"))
 ```
 
 
