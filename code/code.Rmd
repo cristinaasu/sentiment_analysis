@@ -344,18 +344,64 @@ ggplot(combined_prices, aes(x = Date, y = Close, color = Company)) +
   theme(legend.title = element_blank())
 ```
 
+```{r}
+# Comparing Models
+model_comparison <- data.frame(
+  Company = c("Netflix", "Netflix", "Amazon", "Amazon", "Meta", "Meta"),
+  Model = c("Baseline", "Full", "Baseline", "Full", "Baseline", "Full"),
+  `R2` = c(0.011, 0.375, 0.0001, 0.582, 0.427, 0.443),
+  `F-statistic` = c(8.70, 16.33, 0.08, 36.25, 215.9, 43.66),
+  RMSE = c(10.97, 8.74, 2.45, 1.58, 3.60, 3.55)
+)
+model_comparison
+```
+
+```{r}
+# Combine data for all 3 companies
+scatter_data <- bind_rows(
+  meta_cleaned %>%
+    select(Date, Sentiment = `Meta Sentiment Score`, Change = `Meta Daily Change`) %>%
+    mutate(Company = "Meta"),
+  nflx_cleaned %>%
+    select(Date, Sentiment = `Netflix Sentiment Score`, Change = `Netflix Daily Change`) %>%
+    mutate(Company = "Netflix"),
+  amzn_cleaned %>%
+    select(Date, Sentiment = `Amazon Sentiment Score`, Change = `Amazon Daily Change`) %>%
+    mutate(Company = "Amazon")
+)
+
+# Scatter plot
+ggplot(scatter_data, aes(x = Sentiment, y = Change, color = Company)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Sentiment Score vs. Daily Stock Price Change",
+    x = "Sentiment Score",
+    y = "Daily Stock Change (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+
 
 # Modelling
 ## Netflix
 ```{r, warning=FALSE}
-# Baseline Model
+# 1. Baseline Model
 b_nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score`, data = nflx_cleaned)
 summary(b_nflx_model)
 
-# Full Model
-nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Unemployment Rate` + `Netflix Volume` + Month + Year + Inflation, data = nflx_cleaned)
-summary(nflx_model)
+# 2. Plus Economic Factors
+nflx_model_e <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = nflx_cleaned)
+summary(nflx_model_e)
 
+# 3. Plus Financial Factors
+nflx_model_f <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Netflix Volume`, data = nflx_cleaned)
+summary(nflx_model_f)
+
+# 4. Plus Time Fixed Effects - Full Model
+nflx_model <- lm(`Netflix Daily Change` ~ `Netflix Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = nflx_cleaned)
+summary(nflx_model)
 
 # IV regression
 iv_model <- ivreg(
@@ -369,22 +415,28 @@ iv_model <- ivreg(
 summary(iv_model)
 
 
-
 # Logit Model
 logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Netflix Volume` + `Unemployment Rate` + Month + Year + Inflation,
                    data = nflx_cleaned, family = "binomial")
 summary(logit_model)
 ```
 
-
 ## Amazon
 ```{r, warning=FALSE}
-# Baseline Model
+# 1. Baseline Model
 b_amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score`, data = amzn_cleaned)
 summary(b_amzn_model)
 
-# Full Model
-amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Amazon Volume`+ `Unemployment Rate` + Month + Year, data = amzn_cleaned)
+# 2. Plus Economic Factors
+amzn_model_e <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = amzn_cleaned)
+summary(amzn_model_e)
+
+# 3. Plus Financial Factors
+amzn_model_f <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Amazon Volume`, data = amzn_cleaned)
+summary(amzn_model_f)
+
+# 4. Plus Time Fixed Effects - Full Model
+amzn_model <- lm(`Amazon Daily Change` ~ `Amazon Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = amzn_cleaned)
 summary(amzn_model)
 
 # Logit Model
@@ -395,20 +447,27 @@ summary(logit_model_amzn)
 
 ## Meta
 ```{r, warning=FALSE}
-# Baseline Model
+# 1. Baseline Model
 b_meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate`, data = meta_cleaned)
 summary(b_meta_model) 
 
-# Full Model
-meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate` + + Month + Year, data = meta_cleaned)
-summary(meta_model) 
+# 2. Plus Economic Factors
+meta_model_e <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation, data = amzn_cleaned)
+summary(meta_model_e)
+
+# 3. Plus Financial Factors
+meta_model_f <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change` + `Amazon Volume`, data = meta_cleaned)
+summary(meta_model_f)
+
+# 4. Plus Time Fixed Effects - Full Model
+meta_model <- lm(`Meta Daily Change` ~ `Meta Sentiment Score` + `Interest Rate` + `Unemployment Rate` + Inflation + `NASDAQ Daily Change`+ `Netflix Volume` + Month + Year, data = meta_cleaned)
+summary(meta_model)
 
 # Logit Model
 logit_model_meta <- glm(Price_Direction ~ `Meta Sentiment Score` + `NASDAQ Daily Change` + `Interest Rate` + `Meta Volume` + `Unemployment Rate` + Month + Year,
                    data = meta_cleaned, family = "binomial")
 summary(logit_model_meta)
 ```
-
 
 
 
