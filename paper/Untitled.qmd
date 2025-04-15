@@ -1,6 +1,0 @@
----
-title: "paper"
-format: html
-editor: visual
----
-
