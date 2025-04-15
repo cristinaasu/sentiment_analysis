@@ -19,3 +19,11 @@ We apply a layered regression strategy:
 - Fixed Effects (FE) to absorb unobserved time variation.
 - Instrumental Variables (IV/2SLS) using lagged sentiment to reduce endogeneity.
 - Logistic regression to model the *direction* (positive/negative) of returns.
+
+## File Structure
+
+The repository is structured as follows:
+
+- `code/` contains all R scripts used for data cleaning, sentiment computation, data merging, and econometric modeling.
+- `datasets/` contains the cleaned datasets used in the analysis, including sentiment scores, price changes, and macroeconomic controls.
+- `paper/` contains the final paper, including figures, tables, and the compiled PDF.
