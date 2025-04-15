@@ -1,0 +1,456 @@
+\documentclass[12pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{adjustbox}
+\usepackage{ragged2e}
+\usepackage{threeparttable}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage{times}
+\usepackage{makecell}
+\usepackage[labelfont=bf]{caption}
+\usepackage{indentfirst}
+\usepackage{setspace}
+\doublespacing
+
+\begin{document}
+
+\thispagestyle{empty}
+\begin{center}
+\vspace*{1cm}
+
+{\Large \textbf{The Power of Media: \\
+Sentiment Shifts and Stock Price Dynamics*}}\\[0.5em]
+
+{Sentiment predicts price movements for Netflix, but not Amazon or Meta.
+}\\[1cm]
+
+Cristina Su Lam \hspace{1.5cm} Parisa Pham \hspace{1.5cm} Sum Yee Chan\\[0.5cm]
+ECO475H1S: Applied Econometrics II\\
+Department of Economics, University of Toronto\\
+Prof. Antoine Djogbenou\\[0.5cm]
+April 14, 2025
+\end{center}
+
+\vspace*{1cm}
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\noindent\textbf{Abstract.} 
+This study investigates whether financial news sentiment affects daily stock price changes and price direction for three large-cap technology firms: Netflix, Amazon, and Meta. Using \textit{New York Times} headlines from 2014–2025, we construct sentiment scores with a finance-specific dictionary and link them to stock prices, trading volume, macroeconomic indicators, and market trends. Employing OLS, fixed effects, IV, and logistic models, we find that sentiment significantly predicts price movements for Netflix but has no meaningful impact on Amazon or Meta. For Netflix, IV estimates remain directionally consistent but imprecise, while logistic models show weak predictive power across all firms. These results highlight that sentiment effects are firm-specific and most pronounced in volatile, media-sensitive environments, suggesting that forecasting models should account for structural differences rather than apply a one-size-fits-all approach.
+
+\end{minipage}
+\end{center}
+
+\vfill
+\noindent
+\footnotesize\textbf{* Replication Package Link:} \href{https://github.com/cristinaasu/sentiment_analysis/tree/main}{Project Files and Code}
+
+\newpage
+{
+\hypersetup{linkcolor=black}
+\setstretch{1.4} 
+\tableofcontents
+\normalsize
+\hypersetup{linkcolor=blue}
+}
+
+\newpage
+\section{Introduction}
+\normalsize
+\label{sec:introduction}
+
+Financial economists have long treated asset prices as functions of hard information such as earnings, cash‑flow expectations, and macroeconomic conditions \citep{fama1990}.  Recent research in behavioural finance and text‑as‑data methods, however, shows that qualitative signals embedded in news coverage can also move markets in the short run.  Pioneering work by \citet{tetlock2007giving} and \citet{loughran2011} documents that the tone of newspaper language predicts subsequent returns and trading volume, suggesting that investors react not only to fundamentals but also to the narratives that frame them.
+
+This study investigates whether the sentiment conveyed by daily financial headlines measurably influences the stock price movements of large technology firms. Answering this question has both theoretical and practical implications: if sentiment effects differ across firms, pooled models may misrepresent their importance, and trading strategies that ignore firm characteristics may systematically misprice risk.
+
+We focus on three members of the FAANG cohort—Amazon, Meta, and Netflix.  Technology stocks attract intense coverage and retail participation, making them a natural laboratory for sentiment‑driven trading \citep{cristescu2023wavelet}.  Apple and Google (Alphabet) are excluded because their common names create substantial lexical ambiguity for headline scraping, whereas “Amazon,” “Meta,” and “Netflix” map cleanly onto single tickers.  Restricting attention to these firms reduces classification error while still capturing a wide range of business models and investor bases within the sector.
+
+Our empirical design combines daily \textit{New York Times} headlines from 2014–2025 with adjusted‑close prices from Yahoo Finance.  Sentiment scores are computed using the domain‑specific dictionary of \citet{loughran2011}.  We estimate a sequence of models: baseline OLS, specifications with macroeconomic and market controls, firm and calendar fixed effects, an instrumental‑variables model that uses one‑day‑lagged sentiment to mitigate simultaneity bias \citep{tetlock2007giving}, and a complementary logistic regression that predicts the sign of price movements.
+
+The results reveal pronounced firm‑level heterogeneity. For Netflix, a one‑unit increase in the sentiment score is associated with an \$0.85 to \$1.43 rise in next‑day price depending on the specification, and the effect remains positive (though not significant) in the IV model.  For Amazon and Meta, sentiment coefficients are small and statistically indistinguishable from zero once market‑wide factors are controlled.  These findings imply that sentiment matters most for firms with high retail ownership and narrative‑driven volatility, while diversified giants anchored by institutional investors respond mainly to systematic market factors.
+
+By isolating firm-specific sentiment effects using causal econometric tools, this study contributes to the existing literature in three ways. It shows that media tone is not a uniform predictor even within a single sector, illustrates how lagged sentiment can help address simultaneity concerns in high-frequency settings, and offers a replicable firm-level panel linking news sentiment to stock performance. While the analysis is limited by headline-based sentiment measures and assumptions about instrument validity, the findings provide new insight into how structural characteristics shape the role of sentiment in asset pricing.
+
+The remainder of the paper is structured as follows. Section~\ref{sec:literature_review} reviews the relevant literature. Section~\ref{sec:Data} outlines the data sources and variable construction. Section~\ref{sec:Econometric} presents the empirical framework, Section~\ref{sec:results} reports the findings, Section~\ref{sec:discussion} offers interpretation and limitations, and Section~\ref{sec:conclusion} concludes.
+
+\subsection{Literature Review}
+\label{sec:literature_review}
+
+Over the past two decades, the study of asset–pricing dynamics has moved beyond traditional balance‑sheet fundamentals to consider how qualitative signals shape investor behaviour.  Growing evidence shows that the tone, framing, and timing of financial news can influence trading activity and short‑term returns, prompting a large empirical literature that blends insights from behavioural finance, natural‑language processing, and applied econometrics.
+
+Early contributions establish the basic link between media tone and market movements.  \citet{tetlock2007giving} construct a content‑based index from the \textit{Wall Street Journal} and find that days dominated by negative language are followed by lower market returns and higher trading volume, patterns that reverse within a week.  The study interprets this short‑lived drift as evidence that investors initially overreact to pessimistic coverage.  Extending the analysis, \citet{dougal2012journalists} exploit variation in individual columnist style at the same newspaper.  After controlling for firm fundamentals, they show that a more pessimistic writer induces additional same‑day price declines, providing quasi‑experimental support for a causal effect of sentiment.
+
+Subsequent work broadens the empirical setting and refines measurement. Firm‑level studies in the technology sector, where media exposure and retail participation are pronounced, reveal particularly strong effects \citep{cristescu2023wavelet}.  Using wavelet correlation, \citet{cristescu2023wavelet} report that news titles influence Tesla’s opening prices, whereas article descriptions matter more for Microsoft, highlighting that sentiment effects vary across both companies and information windows.  At the index level, \citet{fazlija2022bert} combine a BERT sentiment model with a random‑forest classifier to forecast the daily direction of the S\&P500, achieving substantial gains in predictive accuracy.  Parallel research shows that measurement choices are critical: dictionaries tailored to financial language outperform generic word lists \citep{xiao2023,loughran2011}, and sentiment derived from \textit{New York Times} headlines can affect global equity indices \citep{garcia2018nyt}.
+
+Two broad methodological approaches have emerged in response.  Machine-learning studies focus on forecasting and often employ algorithms such as random forests, long short-term memory networks, and BERT variants \citep{patil2024sentiment,xiao2023}.  While these models deliver strong out-of-sample performance, they seldom incorporate design features that address endogeneity or firm-specific heterogeneity. Recent work has begun to explore hybrid approaches that blend predictive accuracy with causal inference, but such methods remain relatively underutilized in financial sentiment research. By comparison, econometric studies rely on ordinary least squares (OLS), fixed effects, instrumental variables (IV), and binary response models such as logistic regression to estimate causal effects or directional return probabilities.  Notable approaches include the use of newspaper strikes as an instrument for media coverage \citep{engelberg2011causal}, lagged sentiment to capture short-term reversals \citep{tetlock2007giving}, and logistic regression to model the likelihood of positive stock returns based on sentiment extracted from social media \citep{chen2014wisdom}.  Nevertheless, even this stream of research rarely compares sentiment effects across firms with differing investor bases, volatility profiles, or media visibility.
+
+While the literature has grown increasingly sophisticated, three key limitations persist in how sentiment effects are modeled and compared. First, much of the predictive literature treats sentiment as an exogenous input, leaving open the possibility that news tone reacts to price changes rather than causes them.  Second, few studies test whether the magnitude or persistence of sentiment effects varies systematically across firms.  Third, IV and panel‑fixed‑effects strategies—which can mitigate simultaneity bias and unobserved heterogeneity—are still underused.
+
+To address these gaps, the present study links \textit{New York Times} headline sentiment to stock returns for Amazon, Meta, and Netflix, three technology firms that differ in investor composition and media visibility \citep{cristescu2023wavelet}.  Sentiment scores are computed with the \citet{loughran2011} dictionary, chosen for its domain relevance.  The empirical strategy proceeds in three stages.  Baseline OLS models establish the unconditional association between sentiment and next‑day returns.  Specifications with firm and calendar‑date fixed effects then control for unobserved heterogeneity and common shocks.  Finally, a two‑stage least squares model instruments current sentiment with its one‑day lag, following \citet{tetlock2007giving}, to reduce simultaneity bias.  A complementary logistic regression tests whether sentiment predicts the sign of price changes.  By applying causal econometric tools to comparable firms within a single sector, the study provides new evidence on how structural characteristics condition the impact of media tone on asset prices.
+
+\section{Data}
+\label{sec:Data}
+This section describes the datasets employed in the empirical analysis and summarises the construction and justification of the key variables. Section~\ref{sec:Overview} details the data sources, coverage, and panel construction. Section~\ref{sec:variable} explains the theoretical rationale behind variable selection. Section~\ref{sec:Descriptive} presents summary statistics and exploratory visualizations.
+
+\subsection{Overview}
+\label{sec:Overview}
+This study constructs a firm-level daily panel dataset to examine how financial news sentiment influences short-term stock price movements, controlling for macroeconomic and market-wide conditions. The panel spans from 2 January 2014 to 1 April 2025 and covers three major technology firms: Amazon, Netflix, and Meta. The unit of observation is a firm--day, where each row corresponds to one company on a given trading day. The final dataset comprises approximately 2{,}943 firm--day observations.
+
+All data processing and integration steps were conducted in \texttt{R} \citep{R}. The sentiment component of the dataset is derived from the \textit{New York Times Articles Metadata} collection available on Kaggle \citep{kaggle2025}. To isolate company-relevant articles, regular expression keyword filters were applied to the \texttt{headline}, \texttt{lead\_paragraph}, and \texttt{snippet} fields. The resulting text was tokenized using the \texttt{tidytext} package \citep{silge2016}, and sentiment was computed using the financial sentiment dictionary developed by \citet{loughran2011}. For each firm \( i \) on day \( t \), the sentiment score is defined as:
+\[
+S_{it} = \frac{\text{pos}_{it} - \text{neg}_{it}}{\text{pos}_{it} + \text{neg}_{it}},
+\]
+where \( \text{pos}_{it} \) and \( \text{neg}_{it} \) denote the number of positive and negative tokens, respectively. If multiple articles mention a firm on the same day, all tokens from those articles are pooled, and the sentiment score reflects the total count of positive and negative words for that day. In the absence of any articles for a given firm--day, the sentiment score is set to \( S_{it} = 0 \), treating the lack of news as neutral tone. A one-day lag of \( S_{it} \) is also constructed for use in instrumental variable models.
+
+
+Stock market data, including adjusted closing prices and trading volumes, were obtained from Yahoo Finance via the \texttt{quantmod} package \citep{quantmod2020}. The primary dependent variable is the daily return, calculated as the first difference of adjusted close prices:
+\[
+\Delta p_{it} = p_{it} - p_{it-1}.
+\]
+
+A binary variable is additionally constructed, taking the value 1 if the return is positive on day \( t \), and 0 otherwise. To capture broader market movements, the daily change in the NASDAQ Composite Index is included, retrieved from Yahoo Finance using the same method as firm-level stock data.
+
+To control for macroeconomic conditions, three indicators from the Federal Reserve Economic Data (FRED) are incorporated: the Effective Federal Funds Rate (EFFR) \citep{fred_effr}, the Consumer Price Index (CPI) \citep{fred_cpi}, and the Unemployment Rate (UNRATE) \citep{fred_unrate}. As CPI and UNRATE are reported monthly, their values are forward-filled to a daily frequency using the \texttt{zoo} package \citep{zeileis2005} to align with the higher-frequency stock and sentiment data.
+
+Prior to merging, all text fields were standardized by lowercasing and trimming whitespace. Datasets were then joined by calendar date. Observations with missing stock prices—primarily non-trading days—were excluded. Categorical variables for calendar month and year were generated to accommodate time fixed effects in the regressions. The resulting integrated panel includes sentiment scores, stock prices, trading volume, NASDAQ movements, and macroeconomic variables for each firm–day. This structure enables a rigorous econometric assessment of how textual sentiment influences short-run price dynamics, conditional on firm-level and systemic factors. A sample of the cleaned dataset structure is shown in Table~\ref{tab:meta_sample}.
+
+\subsection{Variable Selection}
+\label{sec:variable}
+
+The variables included in this study are selected based on established empirical findings and theoretical relevance to short-term asset pricing. The primary independent variable is a firm-specific daily sentiment score ($S_{it}$), computed from \textit{New York Times} headlines using the financial-domain dictionary by \citet{loughran2011}, which has been shown to outperform general-purpose lexicons in financial contexts \citep{xiao2023}. This follows a growing literature linking media tone to stock price fluctuations \citep{tetlock2007giving, cristescu2023wavelet}.
+
+The dependent variable is daily stock price change ($\Delta p_{it}$), which captures short-run price sensitivity to sentiment shocks. To assess directionality, a binary variable indicating positive or negative return is also constructed.
+
+Macroeconomic controls—including interest rates (proxied by the Effective Federal Funds Rate), inflation (measured by the Consumer Price Index), and the unemployment rate—are included to capture broader economic conditions that influence investor expectations and equity valuation. These are standard controls in studies of return variation (e.g., \citealt{fama1990}).
+
+NASDAQ daily return serves as a market-wide control for systematic risk, particularly relevant for large-cap technology firms whose returns are tightly correlated with overall index trends. Firm-level trading volume ($V_{it}$) is included to represent liquidity and investor attention, both of which may amplify or moderate the influence of sentiment.
+
+Finally, lagged sentiment ($S_{i,t-1}$) is used as an instrument in 2SLS models to address potential simultaneity bias—an approach grounded in the methodology of \citet{tetlock2007giving} and consistent with recent applications of instrumental variables in financial sentiment analysis.
+
+This variable set enables a flexible yet interpretable framework for estimating sentiment effects on stock price dynamics while mitigating omitted variable bias and endogeneity concerns.
+
+\subsection{Descriptive Statistics}
+\label{sec:Descriptive}
+
+To motivate the regression analysis, we first summarize the distributional characteristics of the key variables. Tables~\ref{tab:netflix_summary}, \ref{tab:amazon_summary}, and \ref{tab:meta_summary} present summary statistics for the main variables across the three stocks of interest. The dependent variable, daily stock price change, exhibits significant variability across firms. Meta and Amazon display wide distributions, though with somewhat less extreme values. Netflix, in particular, shows the highest volatility, with daily changes ranging from –122.42 to 84.57 and a notably wide spread between quartiles, indicating that its returns are more sensitive to shocks or abrupt investor reactions than those of its peers.
+
+Among the key independent variables, the sentiment score ranges from –1 to 1. All three firms exhibit distributions skewed slightly negative, with median values below zero. On average, Netflix has a sentiment score of –0.17, Amazon –0.25, and Meta –0.39. This indicates a persistent tilt toward negatively toned coverage, particularly for Meta, potentially reflecting reputational controversies or regulatory scrutiny during the sample period. Such skewness aligns with patterns in financial journalism, which tends to focus on risk and volatility more than positive developments—especially for high-profile firms under public or governmental pressure.
+
+Macroeconomic indicators such as interest rate, inflation, and unemployment rate serve as general controls for economic conditions. These variables exhibit relatively modest variation over the sample period and are identical across firms on a given day, as they do not vary at the firm level. While interest rate fluctuates daily, inflation and unemployment rates are released monthly and are forward-filled to align with the daily panel structure. The interest rate ranges from $0.04\%$ to $5.33\%$, inflation from \$234.7 to \$317.6, and unemployment rate from $3.4\%$ to $14.8\%$. Including these variables helps account for changes in the overall economy, such as rising interest rates or inflation, that could influence stock prices across all firms. By controlling for these factors, we can better isolate the specific effect of news sentiment on stock returns without mistakenly attributing economy-wide movements to firm-specific news.
+
+The NASDAQ daily change is included as a market-wide control to account for systemic factors that influence all stocks on a given day. It exhibits substantial variability, ranging from below –700 to above 670, reflecting broad market fluctuations such as the COVID-19 crash and recovery. At the firm level, trading volume is incorporated to capture shifts in investor attention and liquidity. Amazon averages the highest daily volume (approximately 86 million shares), followed by Meta (26 million) and Netflix (9 million), with all three displaying right-skewed distributions. These spikes in trading activity often coincide with firm-specific events such as earnings releases or major announcements and may be associated with larger price movements. Together, these controls help disentangle the effect of sentiment from both market-wide dynamics and firm-specific trading behavior. The figures that follow provide a visual overview of price trends and the relationship between sentiment and returns, further illustrating firm-level differences.
+
+Figure~\ref{fig:figure1} displays adjusted closing prices over time. Netflix exhibits the steepest growth and most pronounced volatility, particularly between 2020 and 2022. Meta shows a more stable price path, though it experiences a visible correction post-2022. Amazon’s trajectory is smoother and more gradual across the entire period. These trends reflect differing exposures to sector-specific disruptions, such as streaming demand shocks, regulatory shifts, and global tech cycles.
+
+Figure~\ref{fig:figure2} presents a scatter plot of sentiment scores against daily stock price change. While the relationship is noisy, a few patterns emerge. First, the density of observations near zero on both axes suggests that most news headlines carry weak sentiment and coincide with minimal price movement, which is consistent with market efficiency or sentiment neutrality. However, the plot also shows greater variance in returns when sentiment scores approach ±1, particularly for Netflix, where extreme sentiment scores often coincide with sharp price changes. For Meta and Amazon, this pattern is less pronounced, which may indicate that sentiment is a weaker signal for these firms or that their stock returns are more driven by fundamentals or broader market factors. This uneven pattern suggests that investors respond differently to news depending on the firm, which may affect how we model the impact of sentiment on stock returns.
+
+Overall, these descriptive insights highlight meaningful differences across firms in both sentiment exposure and stock return behavior. The evidence suggests that sentiment may play a role in influencing prices, particularly for firms like Netflix that exhibit high return dispersion. These findings motivate a more formal econometric investigation to assess whether sentiment effects persist after accounting for macroeconomic and market-wide influences. Accordingly, the next section develops regression models to examine these relationships in greater detail.
+
+\section{Econometric Model}
+\label{sec:Econometric}
+
+Building on the patterns observed in the previous section, the following analysis outlines the functional forms, estimation techniques, and underlying assumptions used to assess the impact of news sentiment on stock price movements. The empirical strategy incrementally builds from a simple baseline model to more comprehensive specifications that incorporate macroeconomic and financial controls, time fixed effects, and instrumental variables to address potential endogeneity.
+
+\subsection{Functional Forms}
+
+Let $Y_{it}$ represent the daily change in adjusted closing price for firm $i$ on day $t$. The key explanatory variable is the sentiment score $S_{it}$ derived from financial news.
+
+The analysis begins with the following baseline linear model:
+\begin{equation}
+Y_{it} = \beta_0 + \beta_1 S_{it} + \epsilon_{it}
+\end{equation}
+
+To control for macroeconomic conditions, the model is extended as follows:
+\begin{equation}
+Y_{it} = \beta_0 + \beta_1 S_{it} + \beta_2 R_t + \beta_3 U_t + \beta_4 \pi_t + \epsilon_{it}
+\end{equation}
+where $R_t$ denotes the interest rate, $U_t$ the unemployment rate, and $\pi_t$ the inflation level.
+
+Market-wide and firm-level financial factors are then introduced:
+\begin{equation}
+Y_{it} = \beta_0 + \beta_1 S_{it} + \beta_2 R_t + \beta_3 U_t + \beta_4 \pi_t + \beta_5 N_t + \beta_6 V_{it} + \epsilon_{it}
+\end{equation}
+where $N_t$ represents the NASDAQ daily change and $V_{it}$ the trading volume.
+
+The following equation represents the full model, including all controls and time fixed effects:
+\begin{equation}
+Y_{it} = \beta_0 + \beta_1 S_{it} + \beta_2 R_t + \beta_3 U_t + \beta_4 \pi_t + \beta_5 N_t + \beta_6 V_{it} + \gamma_m + \delta_y + \epsilon_{it}
+\label{eq:full_model}
+\end{equation}
+with $\gamma_m$ and $\delta_y$ denoting month and year fixed effects, respectively.
+
+Finally, to address potential endogeneity of $S_{it}$, a two-stage least squares (2SLS) specification is introduced:
+\begin{align}
+\text{1st stage:} & \quad S_{it} = \alpha_0 + \alpha_1 S_{i,t-1} + \alpha_2 X_{it} + u_{it} \\
+\text{2nd stage:} & \quad Y_{it} = \beta_0 + \beta_1 \hat{S}_{it} + \beta_2 X_{it} + \epsilon_{it}
+\label{eq:2SLS}
+\end{align}
+where $X_{it}$ includes all controls used in the full specification.
+
+\subsection{Estimation Methods}
+
+The baseline and extended models are estimated using Ordinary Least Squares (OLS). Given the known presence of heteroskedasticity in financial time series, all standard errors are corrected using the robust variance estimator:
+\[
+\hat{\beta}_{OLS} = (X'X)^{-1}X'Y
+\]
+
+Given the possibility of endogeneity in the sentiment variable, the instrumental variables (IV) approach uses lagged sentiment as an instrument. Inflation is excluded from Equation~\ref{eq:2SLS} to ensure that the model remains identified and computationally stable. In this setup, current sentiment is the only endogenous variable, and lagged sentiment is the only available instrument that satisfies the identification condition of 2SLS. Although other control variables—such as interest rate, unemployment, NASDAQ return, and trading volume—are included in the model, they are treated as exogenous and do not pose a problem for estimation.
+
+Inflation, on the other hand, causes the IV regression to fail despite not being endogenous. This failure is not due to multicollinearity, as confirmed by variance inflation factor (VIF) values below 5 in the first-stage regression (Table~\ref{tab:vif}), but is likely caused by limited variation in the inflation variable and overlap with time fixed effects. Including it may introduce near-linear dependence among covariates, making the model matrix singular and the estimation infeasible.
+
+
+To examine the direction rather than the magnitude of price changes, a logistic regression is estimated using the same covariates as in Equation~\ref{eq:full_model}.
+\begin{equation} 
+\Pr(D_{it} = 1) = \frac{\exp(\beta_0 + \beta_1 S_{it} + \ldots)}{1 + \exp(\beta_0 + \beta_1 S_{it} + \ldots)} 
+\end{equation} 
+where $D_{it}$ equals 1 if the daily price change is positive on day $t$ and 0 otherwise.
+
+\subsection{Assumptions and Justification}
+The linear regression models rest on several key assumptions. First, the relationship between predictors and the outcome is assumed to be linear and additive, implying that the effect of each variable on returns is constant and independent of the others. This assumption is reasonable given the short daily frequency of the data and the focus on capturing marginal effects rather than nonlinear dynamics.
+
+Second, OLS estimation assumes strict exogeneity, meaning that the regressors must be uncorrelated with the error term. This assumption may be violated if sentiment is influenced by the same-day stock return it is intended to explain. For example, a sharp drop in a stock's price early in the trading day could trigger the publication of more negative headlines by market close. In this case, sentiment and returns are jointly determined, leading to simultaneity bias and inconsistency in the OLS estimates.
+
+To address this concern, a 2SLS approach is used with lagged sentiment as an instrument for current sentiment. This instrument satisfies the relevance condition because sentiment tends to be autocorrelated — the tone of media coverage often carries over from one day to the next. It also plausibly satisfies the exclusion restriction, as sentiment from the previous day is unlikely to be influenced by unobservable return shocks occurring today, especially after conditioning on market and macroeconomic controls. This setup helps isolate the component of sentiment that is not simultaneously reacting to current price movements, allowing for a more credible estimate of its causal effect on returns.
+
+Third, heteroskedasticity is a common feature of financial return data, as volatility varies across firms and over time. Robust standard errors are used in all linear models to ensure valid statistical inference in the presence of non-constant error variance.
+
+Fourth, the independence assumption requires that errors are not correlated across time. This may not fully hold in high-frequency financial data due to autocorrelation or unobserved firm-level shocks. However, including lagged instruments, time fixed effects, and market controls reduces the risk of omitted variable bias and partially addresses serial correlation.
+
+Lastly, the logistic regression model assumes a linear relationship between the covariates and the log-odds of a binary outcome. This allows sentiment and other predictors to influence the probability of a price increase in a flexible but interpretable way. While it does not model return magnitudes, this binary approach provides complementary insights into the directional impact of sentiment, particularly when the magnitude of returns is difficult to interpret or subject to high variance.
+
+\subsection{Firm Level Implementation}
+The baseline, full, and logistic regression models are estimated for all three firms. The instrumental variables model is implemented only for Netflix, as regression results indicate that the sentiment score is statistically significant for this firm. This raises greater concern about potential endogeneity, making the use of an IV approach appropriate in this case. For Amazon and Meta, where sentiment does not appear to meaningfully explain return variation, the IV model is excluded to maintain parsimony and avoid unnecessary complexity.
+
+Overall, this modeling framework allows for a detailed assessment of how sentiment influences stock returns, accounting for both magnitude and direction, while addressing firm-level variation and potential confounding factors.
+
+
+
+\section{Results}
+\label{sec:results}
+
+This section presents the empirical findings on the relationship between financial news sentiment and daily stock price changes and directional movements. Results are reported separately for Netflix, Amazon, and Meta to capture firm-level heterogeneity in response to sentiment.
+
+\subsection{Netflix: Regression Result
+}
+Table~\ref{tab:netflix_regression_results} presents results from a series of regression models analyzing the relationship between financial news sentiment and daily stock price changes for Netflix. Across all specifications, the coefficient on the Netflix Sentiment Score remains positive, indicating that favorable news coverage is generally associated with upward price movements. This finding aligns with earlier descriptive analysis that identified Netflix as the most sentiment-sensitive and volatile firm in the sample.
+
+\subsubsection{Baseline and Extended Models
+}
+In the baseline model, which includes only the sentiment score, a one-unit increase in sentiment score is associated with a \$1.43 increase in Netflix’s adjusted closing price ($p < 0.001$). This relationship remains strong and statistically significant (coefficient = 1.24, $p < 0.01$)  even after adding macroeconomic controls (interest rate, unemployment, and inflation), suggesting that sentiment captures information beyond general economic conditions.
+
+However, when market-level variables (NASDAQ daily change) and firm-specific trading volume are added in the third model, the sentiment coefficient falls to 0.61 and becomes statistically insignificant. This decline suggests that earlier estimates may have partially captured underlying market trends or trading activity unrelated to sentiment itself.
+
+\subsubsection{Full Fixed Effects Model
+}
+In the full model with month and year fixed effects, the sentiment coefficient increases to 0.85 ($p < 0.05$), regaining significance. This indicated that sentiment continues to exert a meaningful influence on price movement even after controlling for unobserved seasonal and time-specific factors. This model shows the strongest overall performance, with an adjusted R² of 0.352 and the lowest RMSE (8.91), highlighting improved predictive power.
+
+NASDAQ daily change remains a consistently strong predictor (coefficients $\approx 0.038$, $p < 0.001$), emphasizing the importance of market-wide forces in explaining daily price movements. Additionally, the interest becomes a significant predictor (coefficient = 1.76, $p < 0.05$),  reflecting sensitivity to monetary policy announcements. In contrast, unemployment and inflation remain largely insignificant.
+
+\subsubsection{Instrumental Variables (IV) Model
+}
+The IV estimate remains positive (0.8) but becomes statistically insignificant, with a considerably larger standard error, likely due to weak instrument bias. The adjusted R² also declines slightly, from 0.352 in the full OLS model to 0.335. This reflects a common tradeoff in IV models between internal validity and estimation precision. 
+
+\subsection{Amazon: Regression Result
+}
+Table~\ref{tab:amazon_regression_results} reports regression results for Amazon. Unlike Netflix, the sentiment score does not exhibit a statistically significant relationship with daily stock price changes in any specification.
+
+\subsubsection{Baseline and Extended Models
+}
+In the baseline model, the sentiment coefficient is negative and statistically insignificant (–0.034), indicating no link between sentiment score and price movement. Adding macroeconomic controls does not meaningfully alter the outcome, with the sentiment coefficient remaining insignificant (–0.014). 
+
+With the inclusion of NASDAQ returns and trading volume, the sentiment coefficient turns slightly positive (0.049) but remains statistically insignificant. However, NASDAQ daily change emerges as a consistently significant driver of price movements (coefficient = 0.013, $p < 0.001$), indicating that Amazon's stock responds more to aggregate market movements than firm-specific sentiment.
+
+\subsubsection{Full Fixed Effects Model
+}
+The full fixed effects model yields a similar outcome, with the sentiment coefficient remaining insignificant (0.032). NASDAQ daily change continues to exert a strong, statistically significant influence, while all other variables, including macroeconomic indicators and trading volume, are insignificant.
+Despite the lack of sentiment effects, the model fit is strong, with an adjusted R² of 0.565 and a low RMSE of 1.62. These results suggest that Amazon’s short-term price behavior is primarily shaped by market-wide and seasonal factors, rather than firm-specific sentiment. This may reflect the firm’s large institutional ownership base, diversified operations, and lower sensitivity to speculative news.
+
+
+\subsection{Meta: Regression Result
+}
+Table~\ref{tab:meta_regression_results} presents regression results for Meta. Similar to Amazon, the sentiment coefficient is statistically insignificant across all specifications, indicating that financial news sentiment does not meaningfully explain Meta’s short-term price changes.
+
+\subsubsection{Baseline and Extended Models
+}
+In the baseline model, the sentiment coefficient is –0.053 and insignificant. Including macroeconomic controls does not significantly alter the outcome (–0.061), although interest rate (coefficient = 0.42, $p < 0.1$) and unemployment rate (coefficient = 0.28, $p < 0.05$) become weakly significant, indicating some sensitivity to economic conditions.
+
+Once market and firm-specific controls are added, sentiment turns slightly positive (0.0462) but remains insignificant. The NASDAQ daily change is highly significant (coefficient = 0.024, $p < 0.001$), enforcing the predominance of systematic market trends. Interest rate and unemployment remain marginally significant.
+
+\subsubsection{Full Fixed Effects Model
+}
+In the final model, the sentiment coefficient remains small and statistically insignificant (0.024), while NASDAQ daily change remains highly significant (0.024, $p < 0.001$). All other explanatory variables lose significance, indicating that once fixed effects are accounted for, little additional explanatory power is provided by sentiment, macroeconomic controls, or trading volume.
+
+Despite this, the model fits moderately well, with an adjusted R² of 0.433 and an RMSE of 3.59. These findings suggest that Meta’s stock price behavior is driven largely by market trends and seasonal effects rather than sentiment. This is consistent with its lower volatility and media exposure relative to Netflix.
+
+\subsection{Model Comparisons Across Firms}
+Table~\ref{tab:model_comparison_table} summarizes model performance across all three firms. The full model consistently outperforms the baseline across R² and RMSE metrics, confirming that adding macroeconomic, financial, and time-fixed controls improves explanatory power.
+
+Netflix demonstrates the clearest role for sentiment, with the R² improving from 0.011 to 0.375 and RMSE falling from 10.97 to 8.74. Amazon shows the largest gain in fit, from a 0.0001 R² to a 0.582 R², driven almost entirely by market-level variables. Meta already exhibits strong baseline model performance (R² = 0.427), with only marginal improvement under the full model (R² = 0.443). These differences reinforce the notion that sentiment's influence is firm-specific, contingent on characteristics such as volatility, investor base, and news sensitivity.
+
+
+\subsection{Logistic Regression: Directional Effects
+}
+
+Table~\ref{tab:logit_results} discusses the logistic regression results across all three companies.  For Netflix, the sentiment coefficient is 0.16, positive but statistically insignificant, indicating a potential directional relationship between sentiment and the likelihood of a price increase, though the effect is not strong enough to be distinguished from random variation. For Amazon (0.0056) and Meta (0.095), sentiment remains insignificant, reinforcing the absence of meaningful influence in either magnitude or direction.
+
+NASDAQ daily change is highly significant ($p < 0.001$) across all three firms, again highlighting the importance of systematic market trends. Other control variables, including interest rate, unemployment, inflation, and trading volume, do not show consistent effects.
+
+
+\section{Discussion}
+\label{sec:discussion}
+This section interprets the empirical results in light of existing literature and firm-specific characteristics. We explore why sentiment effects are more pronounced for Netflix, compare structural differences across firms, highlight the contribution of our econometric approach, and discuss how time-series patterns support the regression findings. 
+\subsection{ Summary of Key Findings}
+This study examines whether financial news sentiment influences daily stock returns and return direction, revealing notable heterogeneity across three major technology firms: Netflix, Amazon, and Meta. For Netflix, sentiment emerges as a statistically significant and positive predictor of price changes in most specifications, even after controlling for macroeconomic conditions, market trends, and fixed effects. Although the IV model introduces greater estimation uncertainty, the sentiment coefficient remains directionally consistent. Logistic regression results also show a weak but positive association between sentiment and the likelihood of a price increase. In contrast, Amazon and Meta show no significant relationship between sentiment and price changes, suggesting that the impact of sentiment is highly firm-specific.
+
+\subsection{ Why Sentiment Matters for Netflix}
+Netflix’s stronger reaction to sentiment likely stems from its structural characteristics. As a highly volatile, consumer-facing company operating in a media-intensive industry, Netflix is regularly in the spotlight for events such as show releases, celebrity partnerships, and subscriber updates. These events create attention-driven shocks that can temporarily move prices away from fundamentals. Such coverage is more likely to attract retail investors, who are especially responsive to salient news and prone to sentiment-driven trading behavior \citep{barber2008all}. The resulting increase in trading activity and short-term volatility makes Netflix’s stock more susceptible to sentiment effects. These findings align with prior literature by \cite{tetlock2007giving}, \cite{chen2014wisdom}, and \cite{cristescu2023wavelet}, who report stronger sentiment effects in firms with greater media visibility, higher volatility, and larger retail investor participation.
+
+\subsection{ Structural Differences in Amazon and Meta}
+Unlike Netflix, Amazon and Meta exhibit return behavior largely explained by market-wide forces and macroeconomic trends. In both cases, sentiment coefficients remain statistically insignificant across all models. Amazon, in particular, shows a strong dependence on NASDAQ movements, with a substantial increase in model fit after adding market-level controls—suggesting a high degree of market integration. This could reflect Amazon’s size, institutional ownership, and operational scale, which buffer the firm against sentiment-induced noise. Meta, meanwhile, displays relatively strong baseline predictability and only modest improvements from additional controls. The muted role of sentiment for both firms may be attributed to their stability, lower volatility, and reduced media sensitivity.
+
+\subsection{Methodological Contributions and Literature Comparison}
+This study extends the literature by adopting a causal econometric framework rather than a purely predictive one. While many recent studies leverage machine learning models—such as random forests and BERT variants—for sentiment forecasting \citep{fazlija2022bert, patil2024sentiment}, these models rarely account for endogeneity or firm-level variation. In contrast, this paper applies OLS, fixed effects, IV, and logistic regression to estimate the marginal effect of sentiment, while explicitly addressing simultaneity bias through the use of lagged sentiment as an instrument \citep{tetlock2007giving}. This approach allows us to control for unobserved heterogeneity and time shocks, offering a more rigorous causal interpretation. Moreover, our cross-firm comparison under a consistent modeling strategy addresses a major gap in existing sentiment literature, which often analyzes firms in isolation.
+
+\subsection{Time Series Patterns and Empirical Support}
+Visualizations of key variables (see Appendix~\ref{sec:appendix}) provide further empirical support for these findings. Netflix shows pronounced variability in both sentiment scores and daily price changes, particularly during earnings cycles and major news events between 2020 and 2022. By contrast, Amazon and Meta display tighter clustering around zero in both sentiment and price volatility, consistent with more stable return dynamics. These visual patterns reinforce the regression findings and suggest that firm-specific sensitivity to sentiment is not merely statistical but reflected in the underlying time-series behavior of the data.
+
+
+\subsection{Limitations}
+
+While this study provides meaningful insights into how sentiment influences stock price movements, the analysis faces a few important limitations that should be taken into account.
+
+The sentiment variable is constructed using a dictionary-based method applied to headlines, which captures word polarity but misses the broader nuance often embedded in full-text articles. This limitation means that tone, irony, and context are likely underrepresented, introducing measurement error. If this error correlates with unobserved factors that also affect price movements, then the estimates may still suffer from omitted-variable bias, despite the inclusion of market-wide and macroeconomic controls.
+
+Another challenge lies in addressing endogeneity. The two-stage least squares approach relies on lagged sentiment as an instrument for current sentiment, which is common in prior research. However, this method relies on an exclusion restriction that cannot be directly tested. While lagged sentiment is likely exogenous to contemporaneous price changes after controlling for observed factors, there is no guarantee that it influences prices only through current sentiment. Media cycles or external events may influence both lagged sentiment and price movements, raising concerns about instrument validity. Additionally, this strategy could only be implemented for Netflix, as the instrument lacked sufficient strength for Amazon and Meta. This restricts the ability to generalize causal inferences across firms.
+
+The dataset also does not include observations for every calendar day between 2014 and 2025, since it is limited to trading days when both stock price data and relevant news articles are available. As a result, days without headlines are missing from the analysis. This can introduce bias if sentiment has a different effect on stock prices during quiet news periods. For instance, if days without news usually coincide with stable prices or low trading activity, then the model—by focusing mostly on days with news—might exaggerate how much sentiment actually influences stock movements overall.
+
+The scope of the sample also limits generalizability. All three firms are large, U.S.-based technology companies with high public visibility and extensive English-language coverage. These characteristics may not reflect the media dynamics, investor profiles, or market behavior of firms in other sectors, countries, or sizes.
+
+The use of daily data helps isolate short-term sentiment effects but does not capture within-day volatility or delayed reactions that unfold over longer timeframes. As a result, some dynamics may be missed. Future studies could enhance this work by employing higher-frequency financial and sentiment data, experimenting with more sophisticated text analysis tools, and expanding the sample to include a wider range of firms and market contexts.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This study examines whether daily financial news sentiment has a measurable impact on stock price changes and price direction for three large-cap technology firms: Netflix, Amazon, and Meta. Leveraging a multi-stage empirical framework—including OLS, fixed effects, instrumental variables, and logistic regression—we estimate both the marginal and causal effects of sentiment, while accounting for macroeconomic conditions and market-wide influences.
+
+The analysis reveals that the role of sentiment is not uniform across firms. For Netflix, sentiment exhibits a statistically significant association with daily price change, supporting the view that media tone can influence price dynamics, particularly in firms with higher volatility and retail investor presence. In contrast, sentiment effects are negligible for Amazon and Meta, suggesting that firm-level characteristics such as investor base, media visibility, and sensitivity to narrative-driven movements shape the extent to which sentiment matters.
+
+These findings have both empirical and practical implications. From a modeling standpoint, they underscore the need for firm-specific approaches rather than pooled sentiment-based strategies. From an investor perspective, sentiment metrics may offer forecasting value primarily for firms operating in volatile, consumer-facing environments where attention and news cycles play a prominent role. Overall, this study contributes to the growing literature on financial text analysis by demonstrating how sentiment interacts with structural firm attributes to affect short-term asset pricing.
+
+\newpage
+\bibliographystyle{chicago}
+\bibliography{refs}
+
+\newpage
+\section{Appendix}
+\label{sec:appendix}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{stock_prices_over_time.png}
+    \caption{Time Series of Adjusted Closing Prices for Netflix, Meta, and Amazon (2014–2025)}
+    \label{fig:figure1} 
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{sentiment.png}
+    \caption{Sentiment Score vs. Daily Stock Price Change for Netflix, Meta, and Amazon}
+    \caption*{\textit{Note.} Each point represents one trading day matched with its corresponding sentiment score derived from financial news articles. Sentiment scores are based on the Loughran-McDonald dictionary.}
+    \label{fig:figure2}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\input{sample_dataset}
+\caption{Sample dataset for Meta. Amazon and Netflix datasets follow the same format}
+\label{tab:meta_sample}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\input{netflix_summary}
+\caption{Summary Statistics for Netflix Variables}
+\label{tab:netflix_summary}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\input{amazon_summary}
+\caption{Summary Statistics for Amazon Variables}
+\label{tab:amazon_summary}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\input{meta_summary}
+\caption{Summary Statistics for Meta Variables}
+\label{tab:meta_summary}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\input{vif}
+\caption{VIF from First-Stage Regression}
+\label{tab:vif}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{\text{Regression Results for Netflix Stock Returns}} % Caption above
+\label{tab:netflix_regression_results}
+\resizebox{\textwidth}{!}{
+    \input{netflix_reg}
+}
+\caption*{\textit{Note.} Robust standard errors in parentheses. $^{+} p<0.1$, $^{*} p<0.05$, $^{**} p<0.01$, $^{***} p<0.001$.}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{\text{Regression Results for Amazon Stock Returns}} % Caption above
+\label{tab:amazon_regression_results}
+\resizebox{\textwidth}{!}{
+    \input{amazon_reg}
+}
+\caption*{\textit{Note.} Robust standard errors in parentheses. $^{+} p<0.1$, $^{*} p<0.05$, $^{**} p<0.01$, $^{***} p<0.001$.}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{\text{Regression Results for Meta Stock Returns}} % Caption above
+\label{tab:meta_regression_results}
+\resizebox{\textwidth}{!}{
+    \input{meta_reg}
+}
+\caption*{\textit{Note.} Robust standard errors in parentheses. $^{+} p<0.1$, $^{*} p<0.05$, $^{**} p<0.01$, $^{***} p<0.001$.}
+\end{table}
+
+\begin{table}[h!]
+    \centering
+    \caption{Model Performance Metrics Across Companies and Specifications}
+    \label{tab:model_comparison_table}
+    \input{model_comparison_table}
+    \caption*{\textit{Note.} RMSE = Root Mean Squared Error. Models labeled "Full" include economic and financial controls, as well as fixed effects.}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{\text{Logistic Regression Results for Stock Price Direction}} % Caption above
+\label{tab:logit_results}
+\begin{adjustbox}{max width=\textwidth}
+\input{logit_table}
+\end{adjustbox}
+\caption*{\textit{Note.} Robust standard errors in parentheses. $^{+} p<0.1$, $^{*} p<0.05$, $^{**} p<0.01$, $^{***} p<0.001$.}
+\end{table}
+
+
+\end{document}
+
