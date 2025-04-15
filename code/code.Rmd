@@ -243,14 +243,12 @@ meta_cleaned <- meta_cleaned %>% filter(!is.na(Close))
 ```{r}
 # Select and rename columns for Netflix dataset
 nflx_cleaned <- nflx_cleaned %>%
-  select(Date, Close, Daily_Change, NFLX.Volume, Sentiment_Score, positive_count, negative_count, 
+  select(Date, Close, Daily_Change, NFLX.Volume, Sentiment_Score, 
          Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
   rename(
     "Netflix Daily Change" = Daily_Change,
     "Netflix Close Price" = Close,
     "Netflix Sentiment Score" = Sentiment_Score,
-    "Netflix Positive Count" = positive_count,
-    "Netflix Negative Count" = negative_count,
     "NASDAQ Daily Change" = Nasdaq_Daily_Change,
     "Interest Rate" = EFFR,
     "Inflation" = CPIAUCSL,
@@ -267,14 +265,12 @@ nflx_cleaned <- nflx_cleaned %>%
 
 # Select and rename columns for Amazon dataset
 amzn_cleaned <- amzn_cleaned %>%
-  select(Date, Close, Daily_Change, AMZN.Volume, Sentiment_Score, positive_count, negative_count, 
+  select(Date, Close, Daily_Change, AMZN.Volume, Sentiment_Score,
          Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
   rename(
     "Amazon Daily Change" = Daily_Change,
     "Amazon Close Price" = Close,
     "Amazon Sentiment Score" = Sentiment_Score,
-    "Amazon Positive Count" = positive_count,
-    "Amazon Negative Count" = negative_count,
     "NASDAQ Daily Change" = Nasdaq_Daily_Change,
     "Interest Rate" = EFFR,
     "Inflation" = CPIAUCSL,
@@ -289,14 +285,12 @@ amzn_cleaned <- amzn_cleaned %>%
 
 # Select and rename columns for Meta dataset
 meta_cleaned <- meta_cleaned %>%
-  select(Date, Close, Daily_Change, META.Volume, Sentiment_Score, positive_count, negative_count, 
+  select(Date, Close, Daily_Change, META.Volume, Sentiment_Score,
          Nasdaq_Daily_Change, EFFR, CPIAUCSL, UNRATE) %>%
   rename(
     "Meta Daily Change" = Daily_Change,
     "Meta Close Price" = Close,
     "Meta Sentiment Score" = Sentiment_Score,
-    "Meta Positive Count" = positive_count,
-    "Meta Negative Count" = negative_count,
     "NASDAQ Daily Change" = Nasdaq_Daily_Change,
     "Interest Rate" = EFFR,
     "Inflation" = CPIAUCSL,
@@ -311,6 +305,7 @@ meta_cleaned <- meta_cleaned %>%
 ```
 
 # EDA
+
 ```{r}
 # Meta summary
 summary(meta_cleaned[, c("Meta Daily Change", "Meta Sentiment Score", 
@@ -376,10 +371,13 @@ ggplot(scatter_data, aes(x = Sentiment, y = Change, color = Company)) +
   labs(
     title = "Sentiment Score vs. Daily Stock Price Change",
     x = "Sentiment Score",
-    y = "Daily Stock Change (%)"
+    y = "Daily Stock Price Change (%)"
   ) +
-  theme_minimal() +
-  theme(legend.title = element_blank())
+  theme_minimal(base_family = "Times") +  # Set Times font
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Center the title
+    legend.title = element_blank()
+  )
 ```
 
 # Modelling
@@ -423,6 +421,15 @@ logit_model <- glm(Price_Direction ~ `Netflix Sentiment Score` + `NASDAQ Daily C
 summary(logit_model)
 coeftest(logit_model, vcov = vcovHC(logit_model, type = "HC1"))
 ```
+```{r}
+first_stage <- lm(`Netflix Sentiment Score` ~ Lagged_Sentiment + `NASDAQ Daily Change` + 
+                    `Interest Rate` + `Netflix Volume` + `Unemployment Rate` + Inflation, 
+                  data = iv_data)
+
+# Check VIFs
+vif(first_stage)
+```
+
 
 ## Amazon
 ```{r, warning=FALSE}
